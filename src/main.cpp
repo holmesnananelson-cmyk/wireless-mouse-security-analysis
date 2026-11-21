@@ -2,77 +2,54 @@
 #include <SPI.h>
 #include <RF24.h>
 
-// On cree l'objet "radio" qui pilote le module.
-// (9, 10) = broches CE et CSN. 4000000 = vitesse SPI a 4 MHz (plus tolerante au cablage).
 RF24 radio(9, 10, 4000000);
 
-// Le module nRF24L01+ couvre 126 canaux (de 0 a 125).
-// Chaque canal correspond a une frequence : 2400 MHz + numero du canal.
-// Exemple : canal 76 = 2476 MHz.
-const uint8_t NOMBRE_CANAUX = 126;
-
-// Un tableau pour compter, a chaque passage, combien de fois un signal
-// a ete detecte sur chaque canal.
-uint8_t valeurs[NOMBRE_CANAUX];
+// Canal a ecouter. On commence par un de ceux ou on a vu la souris.
+// On pourra le changer (23, 20, 22, 25...) si on ne capte rien.
+const uint8_t CANAL = 23;
 
 void setup() {
   Serial.begin(9600);
   while (!Serial) {}
+  Serial.println(F("=== Sniffer promiscuous nRF24L01+ ==="));
 
-  Serial.println(F("=== Scanner de canaux 2.4 GHz ==="));
+  radio.begin();
+  radio.setAutoAck(false);        // on n'accuse rien reception, on espionne
+  radio.setChannel(CANAL);        // on se fixe sur un canal
+  radio.setDataRate(RF24_2MBPS);  // vitesse supposee de la souris (a tester : 2MBPS puis 1MBPS)
+  radio.disableCRC();             // on desactive le controle d'erreur pour ne rien jeter
+  radio.setPayloadSize(32);       // taille max d'un paquet
 
-  // On demarre le module.
-  if (!radio.begin()) {
-    Serial.println(F("ERREUR : le module ne repond pas. Verifie le cablage."));
-    while (true) {}  // On bloque ici, inutile de continuer sans module.
-  }
+  // Astuce "promiscuous" : adresse de 2 octets + pseudo-adresse,
+  // pour capter les paquets de n'importe quel emetteur voisin.
+  radio.setAddressWidth(2);
+  radio.openReadingPipe(0, 0x00AALL);
 
-  // Configuration pour l'ecoute passive :
-  radio.setAutoAck(false);  // On n'envoie pas d'accuse de reception : on observe, c'est tout.
-  radio.stopListening();    // On part d'un etat propre avant de scanner.
-
-  // On affiche l'en-tete : les numeros de canaux en hexadecimal, lus verticalement.
-  Serial.print(F("Canaux (0 a 125) : "));
-  for (uint8_t canal = 0; canal < NOMBRE_CANAUX; canal++) {
-    Serial.print(canal >> 4, HEX);  // chiffre des dizaines (hex) du numero de canal
-  }
-  Serial.println();
-  Serial.print(F("                   "));
-  for (uint8_t canal = 0; canal < NOMBRE_CANAUX; canal++) {
-    Serial.print(canal & 0xF, HEX);  // chiffre des unites (hex) du numero de canal
-  }
-  Serial.println();
+  radio.startListening();
+  Serial.print(F("Ecoute sur le canal "));
+  Serial.println(CANAL);
 }
 
 void loop() {
-  // Nombre de fois qu'on va sonder chaque canal a chaque tour de boucle.
-  // Plus ce nombre est eleve, plus la mesure est fiable (mais plus lente).
-  const int REPETITIONS = 100;
+  if (radio.available()) {
+    uint8_t paquet[32];
+    radio.read(paquet, 32);
 
-  // On remet tous les compteurs a zero avant un nouveau balayage.
-  memset(valeurs, 0, sizeof(valeurs));
-
-  // On sonde chaque canal, REPETITIONS fois.
-  for (int rep = 0; rep < REPETITIONS; rep++) {
-    for (uint8_t canal = 0; canal < NOMBRE_CANAUX; canal++) {
-      radio.setChannel(canal);   // On se place sur le canal a tester.
-
-      radio.startListening();    // On active la reception (le module "ecoute").
-      delayMicroseconds(130);    // On laisse 130 microsecondes au module pour capter.
-      radio.stopListening();     // On arrete d'ecouter.
-
-      // testCarrier() renvoie vrai si un signal a ete detecte pendant l'ecoute.
-      if (radio.testCarrier()) {
-        valeurs[canal]++;        // On incremente le compteur de ce canal.
-      }
+    // On compte les octets "bruit" : AA et 55 sont les motifs du preambule.
+    uint8_t bruit = 0;
+    for (uint8_t i = 0; i < 32; i++) {
+      if (paquet[i] == 0xAA || paquet[i] == 0x55) bruit++;
     }
-  }
 
-  // On affiche le resultat : un chiffre hex par canal (0 = rien, f = tres actif).
-  for (uint8_t canal = 0; canal < NOMBRE_CANAUX; canal++) {
-    // On plafonne a 15 (f en hex) pour tenir sur un seul caractere.
-    uint8_t niveau = min((uint8_t)0xF, valeurs[canal]);
-    Serial.print(niveau, HEX);
+    // Si plus de la moitie du paquet est du preambule, on l'ignore.
+    if (bruit > 16) return;
+
+    // Sinon, on affiche : candidat "vrai paquet".
+    for (uint8_t i = 0; i < 32; i++) {
+      if (paquet[i] < 16) Serial.print('0');
+      Serial.print(paquet[i], HEX);
+      Serial.print(' ');
+    }
+    Serial.println();
   }
-  Serial.println();
 }
