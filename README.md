@@ -50,10 +50,12 @@ difficile. Détail complet : [results/01-detection-canaux.md](results/01-detecti
 Une fois la plage connue, je me suis mis à l'écoute en mode "promiscuous" pour
 attraper les paquets bruts, sans me faire passer pour le vrai récepteur.
 
-Premier essai sans filtre : un déluge de bruit, inexploitable. En réactivant le
-contrôle CRC (le mécanisme qui vérifie qu'un paquet n'est pas corrompu), le bruit
-a disparu et des paquets propres et réguliers sont ressortis — uniquement quand
-la souris était allumée. Détail complet :
+Problème : en promiscuous on reçoit énormément de bruit radio (surtout du
+préambule, les motifs `0xAA`/`0x55` répétés) mêlé aux vrais paquets. La solution
+a été de filtrer ce bruit en logiciel : pour chaque paquet, on compte les octets
+de préambule et on jette ceux qui en sont majoritairement composés. Il est alors
+resté des paquets propres et réguliers, visibles seulement quand la souris était
+allumée. Détail complet :
 [results/02-capture-paquets.md](results/02-capture-paquets.md).
 
 Structure typique d'un paquet capturé :

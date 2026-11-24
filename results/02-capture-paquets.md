@@ -16,28 +16,30 @@ transmises en clair.
 
 ## Méthode
 
-Le module a été placé en mode « promiscuous » (écoute de tout le trafic) sur le
+Le module a été placé en mode "promiscuous" (écoute de tout le trafic) sur le
 canal 23, avec une pseudo-adresse de 2 octets pour ne pas se limiter à un seul
 émetteur.
 
-Une première capture, CRC désactivé, a produit un flot continu de paquets
-d'apparence aléatoire — du bruit — que la souris soit allumée ou éteinte. Les
-vrais paquets de la souris y étaient noyés et indistinguables.
+Le CRC a volontairement été désactivé. En temps normal, le CRC est un code de
+vérification qui fait rejeter par la radio tout paquet qui ne lui est pas
+destiné. Or ici, on veut justement capter des paquets qui ne nous sont pas
+adressés. CRC désactivé, la radio ne jette plus rien et laisse tout remonter,
+y compris beaucoup de bruit radio, fait surtout de motifs de préambule répétés
+(`0xAA` = 10101010 et `0x55` = 01010101).
 
-Le CRC a ensuite été réactivé (16 bits). Le CRC est un petit code de
-vérification ajouté à chaque paquet : le récepteur recalcule ce code et ne garde
-que les paquets dont le résultat correspond. Un paquet de bruit aléatoire a une
-probabilité infime d'avoir un CRC valide, il est donc rejeté, tandis qu'un vrai
-paquet de la souris passe. Cette simple validité suffit à filtrer la quasi-
-totalité du bruit.
+Ce bruit a été filtré en logiciel, directement dans le programme : pour chaque
+paquet de 32 octets, on compte les octets valant `0xAA` ou `0x55`. Si plus de la
+moitié du paquet (16 octets) est ce préambule, le paquet est jeté comme du
+bruit, sinon il est conservé comme vrai paquet candidat et affiché.
 
-Deux captures ont été comparées : souris éteinte (témoin) et souris allumée.
+Deux captures ont ensuite été comparées : souris éteinte (témoin) et souris
+allumée.
 
 ## Résultats
 
-La capture avec CRC a fait apparaître 11 paquets partageant une même signature
-`9E 9E 96 54`, répétés à l'identique. Cette signature est absente de la capture
-témoin (souris éteinte).
+Une fois le bruit filtré, 11 paquets partageant une même signature
+`9E 9E 96 54` sont apparus, répétés à l'identique. Cette signature est absente
+de la capture témoin (souris éteinte).
 
 | Capture          | Paquets `9E 9E 96 54` |
 |------------------|-----------------------|
@@ -74,7 +76,7 @@ chiffrées :
 - L'adresse `9E 9E 96 54` est fixe et lisible. Un chiffrement la rendrait
   d'apparence aléatoire et la ferait varier d'un paquet à l'autre.
 - La charge utile vaut `00 00 00 00 00 00` quand la souris ne bouge pas. Un
-  chiffrement ne produirait jamais de zéros propres : même « aucun mouvement »
+  chiffrement ne produirait jamais de zéros propres : même "aucun mouvement"
   ressortirait brouillé.
 
 La communication de la souris n'est donc pas chiffrée. Son adresse étant de plus
@@ -88,13 +90,12 @@ correspond à la classe de vulnérabilité décrite par la recherche MouseJack.
   (répétition et zéros incompatibles avec un chiffrement) reste valable.
 - La structure est identifiée, mais le rôle précis de chaque octet (boutons,
   déplacements X et Y) n'est pas encore décodé.
-- L'écoute est démontrée ; l'injection de paquets n'a pas été testée.
+- L'écoute est démontrée, mais l'injection de paquets n'a pas été testée.
 
 ## Suite
 
 Décoder le rôle précis de chaque octet, puis étudier la faisabilité d'une
-injection de paquets — étape qui nécessiterait vraisemblablement du matériel
-spécialisé (type Crazyradio).
+injection de paquets sur mon propre matériel.
 
 ## Cadre
 

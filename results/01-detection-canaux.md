@@ -15,17 +15,17 @@ Arduino Nano + module nRF24L01+.
 
 ## Méthode
 
-Le code `src/main.cpp` fait office de scanner : il parcourt les 126 canaux de
-la bande 2,4 GHz (canal N = 2400 + N MHz) et mesure, pour chacun, la présence
-d'un signal. Chaque canal est sondé 100 fois par passage. Le résultat s'affiche
-sous forme d'un caractère par canal, de `0` (aucune activité) à `f` (activité
-maximale).
+Le code `archive/channel-scanner.cpp` fait office de scanner : il parcourt les
+126 canaux de la bande 2,4 GHz (canal N = 2400 + N MHz) et mesure, pour chacun,
+la présence d'un signal. Chaque canal est sondé 100 fois par passage. Le
+résultat s'affiche sous forme d'un caractère par canal, de `0` (aucune activité)
+à `f` (activité maximale).
 
 Pour isoler la souris du bruit de fond (Wi-Fi, Bluetooth voisins), une
 comparaison contrôlée a été menée en ne changeant qu'un seul paramètre :
 
-1. Souris **éteinte** (interrupteur sur OFF, dongle resté branché) — mesure de
-   référence du bruit ambiant.
+1. Souris **éteinte** (interrupteur sur OFF, dongle resté branché), pour mesurer
+   le bruit ambiant de référence.
 2. Souris **allumée et déplacée** en continu, près du module.
 
 L'activité moyenne par canal a été calculée pour chaque situation, puis la
